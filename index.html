@@ -2,63 +2,55 @@
 <html>
 <head>
     <style>
-        body { margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background: #eee; font-family: sans-serif; overflow: hidden; }
-        canvas { cursor: crosshair; margin-top: 10px; border: 2px solid #ccc; }
-        .preview { width: 50px; height: 50px; border: 2px solid #000; margin: 10px; border-radius: 5px; }
+        body { margin: 0; display: flex; flex-direction: column; align-items: center; background: #fff; overflow: hidden; }
+        canvas { cursor: crosshair; border: 1px solid #000; margin-top: 10px; }
+        #preview { width: 40px; height: 40px; margin: 5px; border: 1px solid #000; }
     </style>
 </head>
 <body>
-    <div class="preview" id="colorPreview"></div>
-    <canvas id="colorCanvas" width="250" height="250"></canvas>
+    <div id="preview"></div>
+    <canvas id="picker" width="250" height="250"></canvas>
 
     <script>
-        const canvas = document.getElementById('colorCanvas');
+        // Pega a URL do script LSL que passamos via "?cap="
+        const urlParams = new URLSearchParams(window.location.search);
+        const lslCap = urlParams.get('cap');
+
+        const canvas = document.getElementById('picker');
         const ctx = canvas.getContext('2d');
-        const preview = document.getElementById('colorPreview');
+        const preview = document.getElementById('preview');
 
-        // Cria o degradê colorido (estilo a sua imagem)
-        let gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-        gradient.addColorStop(0, "red");
-        gradient.addColorStop(0.17, "orange");
-        gradient.addColorStop(0.33, "yellow");
-        gradient.addColorStop(0.5, "green");
-        gradient.addColorStop(0.67, "cyan");
-        gradient.addColorStop(0.83, "blue");
-        gradient.addColorStop(1, "magenta");
-        ctx.fillStyle = gradient;
+        // Desenha o degradê colorido
+        let grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+        ["red", "orange", "yellow", "green", "cyan", "blue", "magenta", "red"].forEach((color, i, arr) => {
+            grad.addColorStop(i / (arr.length - 1), color);
+        });
+        ctx.fillStyle = grad;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Adiciona o degradê de branco/preto (vertical)
-        let whiteGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        whiteGrad.addColorStop(0, "rgba(255,255,255,1)");
-        whiteGrad.addColorStop(0.5, "rgba(255,255,255,0)");
-        whiteGrad.addColorStop(0.5, "rgba(0,0,0,0)");
-        whiteGrad.addColorStop(1, "rgba(0,0,0,1)");
-        ctx.fillStyle = whiteGrad;
+        // Desenha o degradê de brilho/preto
+        let vGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        vGrad.addColorStop(0, "rgba(255,255,255,1)");
+        vGrad.addColorStop(0.5, "rgba(255,255,255,0)");
+        vGrad.addColorStop(0.5, "rgba(0,0,0,0)");
+        vGrad.addColorStop(1, "rgba(0,0,0,1)");
+        ctx.fillStyle = vGrad;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        function pickColor(event) {
+        canvas.addEventListener('mousedown', (e) => {
             const rect = canvas.getBoundingClientRect();
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-            const imgData = ctx.getImageData(x, y, 1, 1).data;
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const data = ctx.getImageData(x, y, 1, 1).data;
+            const rgb = `${data[0]},${data[1]},${data[2]}`;
             
-            const r = imgData[0];
-            const g = imgData[1];
-            const b = imgData[2];
-            
-            preview.style.backgroundColor = `rgb(${r},${g},${b})`;
-            
-            const rgbString = `${r},${g},${b}`;
+            preview.style.backgroundColor = `rgb(${rgb})`;
 
-            // Envia para o LSL
-            if (window.mylsl) {
-                window.mylsl.call('mudar_cor', rgbString);
+            // ENVIA PARA O SECOND LIFE
+            if (lslCap) {
+                fetch(lslCap, { method: 'POST', body: rgb });
             }
-        }
-
-        // Envia a cor apenas quando soltar o clique (evita lag)
-        canvas.addEventListener('mouseup', pickColor);
+        });
     </script>
 </body>
 </html>
